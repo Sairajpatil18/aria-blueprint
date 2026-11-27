@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { Handle, Position, ReactFlow } from '@xyflow/react'
 import { cn } from '@/lib/utils'
 
@@ -17,6 +17,14 @@ const SAMPLE_KINDS = {
   service: 'API',
   database: 'Database',
 }
+
+const TABS = [
+  { id: 'graph', label: 'Graph' },
+  { id: 'stack', label: 'Tech Stack' },
+  { id: 'cost', label: '$0 Cost Check' },
+  { id: 'risks', label: 'Risks' },
+  { id: 'roadmap', label: '4-Week Roadmap' },
+]
 
 function AriaNode({ data }) {
   const accent = ACCENTS[data.kind] || ACCENTS.External
@@ -48,6 +56,8 @@ function Section({ title, children }) {
 }
 
 export default function BlueprintView({ blueprint }) {
+  const [selected, setSelected] = useState('graph')
+
   const nodes = useMemo(() => {
     const columns = Math.min(3, Math.max(1, Math.ceil(Math.sqrt(blueprint.nodes.length))))
     return blueprint.nodes.map((node, index) => ({
@@ -80,6 +90,15 @@ export default function BlueprintView({ blueprint }) {
     [blueprint],
   )
 
+  const available = {
+    graph: true,
+    stack: Boolean(blueprint.stack?.length),
+    cost: Boolean(blueprint.costCheck),
+    risks: Boolean(blueprint.risks?.length),
+    roadmap: Boolean(blueprint.roadmap?.length),
+  }
+  const active = available[selected] ? selected : 'graph'
+
   return (
     <div className="mx-auto w-full max-w-6xl space-y-5">
       <div className="flex flex-wrap items-end justify-between gap-3">
@@ -93,102 +112,129 @@ export default function BlueprintView({ blueprint }) {
         </span>
       </div>
 
-      <div className="panel overflow-hidden">
-        <ReactFlow
-          nodes={nodes}
-          edges={edges}
-          nodeTypes={nodeTypes}
-          colorMode="dark"
-          fitView
-          fitViewOptions={{ padding: 0.3 }}
-          minZoom={0.35}
-          maxZoom={1.6}
-          nodesConnectable={false}
-          proOptions={{ hideAttribution: true }}
-          className="h-[520px] w-full bg-transparent"
-        />
+      <div
+        role="tablist"
+        aria-label="Blueprint sections"
+        className="flex gap-1 overflow-x-auto rounded-xl border border-line/70 bg-white/[0.03] p-1"
+      >
+        {TABS.map((tab) => {
+          const on = active === tab.id
+          return (
+            <button
+              key={tab.id}
+              type="button"
+              role="tab"
+              aria-selected={on}
+              disabled={!available[tab.id]}
+              onClick={() => setSelected(tab.id)}
+              className={cn(
+                'shrink-0 rounded-lg px-3 py-1.5 text-xs font-medium transition',
+                on ? 'bg-aria-cyan/15 text-aria-cyan' : 'text-slate-400 hover:text-slate-100',
+                !available[tab.id] && 'cursor-not-allowed opacity-35 hover:text-slate-400',
+              )}
+            >
+              {tab.label}
+            </button>
+          )
+        })}
       </div>
 
-      <div className="grid gap-5 lg:grid-cols-2">
-        {blueprint.stack?.length ? (
-          <Section title="Free-tier stack">
-            <ul className="divide-y divide-line/60">
-              {blueprint.stack.map((row) => (
-                <li key={`${row.area}-${row.choice}`} className="py-3 first:pt-0 last:pb-0">
-                  <div className="flex items-baseline justify-between gap-3">
-                    <span className="text-sm font-semibold text-slate-100">{row.choice}</span>
-                    <span className="font-mono text-[10px] uppercase tracking-wider text-slate-500">{row.area}</span>
-                  </div>
-                  <p className="mt-1 text-xs leading-relaxed text-slate-400">{row.why}</p>
-                  <p className="mt-1 text-[11px] text-aria-cyan/80">{row.freeTier}</p>
+      {active === 'graph' ? (
+        <div className="panel overflow-hidden" style={{ height: 520 }}>
+          <ReactFlow
+            nodes={nodes}
+            edges={edges}
+            nodeTypes={nodeTypes}
+            colorMode="dark"
+            fitView
+            fitViewOptions={{ padding: 0.3 }}
+            minZoom={0.35}
+            maxZoom={1.6}
+            nodesConnectable={false}
+            proOptions={{ hideAttribution: true }}
+            className="h-[520px] w-full bg-transparent"
+          />
+        </div>
+      ) : null}
+
+      {active === 'stack' ? (
+        <Section title="Free-tier stack">
+          <ul className="divide-y divide-line/60">
+            {blueprint.stack.map((row) => (
+              <li key={`${row.area}-${row.choice}`} className="py-3 first:pt-0 last:pb-0">
+                <div className="flex items-baseline justify-between gap-3">
+                  <span className="text-sm font-semibold text-slate-100">{row.choice}</span>
+                  <span className="font-mono text-[10px] uppercase tracking-wider text-slate-500">{row.area}</span>
+                </div>
+                <p className="mt-1 text-xs leading-relaxed text-slate-400">{row.why}</p>
+                <p className="mt-1 text-[11px] text-aria-cyan/80">{row.freeTier}</p>
+              </li>
+            ))}
+          </ul>
+        </Section>
+      ) : null}
+
+      {active === 'cost' ? (
+        <Section title="$0 cost check">
+          <p className="text-sm leading-relaxed text-slate-300">{blueprint.costCheck.verdict}</p>
+          {blueprint.costCheck.freeParts?.length ? (
+            <ul className="mt-3 space-y-1.5">
+              {blueprint.costCheck.freeParts.map((part) => (
+                <li key={part} className="flex gap-2 text-xs text-slate-400">
+                  <span className="text-aria-lime">✓</span>
+                  {part}
                 </li>
               ))}
             </ul>
-          </Section>
-        ) : null}
-
-        {blueprint.costCheck ? (
-          <Section title="$0 cost check">
-            <p className="text-sm leading-relaxed text-slate-300">{blueprint.costCheck.verdict}</p>
-            {blueprint.costCheck.freeParts?.length ? (
-              <ul className="mt-3 space-y-1.5">
-                {blueprint.costCheck.freeParts.map((part) => (
-                  <li key={part} className="flex gap-2 text-xs text-slate-400">
-                    <span className="text-aria-lime">✓</span>
-                    {part}
-                  </li>
-                ))}
-              </ul>
-            ) : null}
-            {blueprint.costCheck.breaksAt10k?.length ? (
-              <div className="mt-4 space-y-2">
-                <p className="font-mono text-[10px] uppercase tracking-wider text-aria-amber/80">Breaks around 10k users</p>
-                {blueprint.costCheck.breaksAt10k.map((row) => (
-                  <div key={row.item} className="rounded-lg border border-line/70 bg-white/[0.02] p-2.5">
-                    <p className="text-xs font-medium text-slate-200">{row.item} — {row.limit}</p>
-                    <p className="mt-0.5 text-[11px] text-slate-400">Next step: {row.fix}</p>
-                  </div>
-                ))}
-              </div>
-            ) : null}
-          </Section>
-        ) : null}
-
-        {blueprint.risks?.length ? (
-          <Section title="Risks">
-            <ul className="space-y-3">
-              {blueprint.risks.map((row) => (
-                <li key={row.risk}>
-                  <p className="text-sm font-medium text-slate-200">{row.risk}</p>
-                  <p className="mt-0.5 text-xs leading-relaxed text-slate-400">{row.mitigation}</p>
-                </li>
+          ) : null}
+          {blueprint.costCheck.breaksAt10k?.length ? (
+            <div className="mt-4 space-y-2">
+              <p className="font-mono text-[10px] uppercase tracking-wider text-aria-amber/80">Breaks around 10k users</p>
+              {blueprint.costCheck.breaksAt10k.map((row) => (
+                <div key={row.item} className="rounded-lg border border-line/70 bg-white/[0.02] p-2.5">
+                  <p className="text-xs font-medium text-slate-200">{row.item} — {row.limit}</p>
+                  <p className="mt-0.5 text-[11px] text-slate-400">Next step: {row.fix}</p>
+                </div>
               ))}
-            </ul>
-          </Section>
-        ) : null}
+            </div>
+          ) : null}
+        </Section>
+      ) : null}
 
-        {blueprint.roadmap?.length ? (
-          <Section title="4-week roadmap">
-            <ol className="space-y-3">
-              {blueprint.roadmap.map((week) => (
-                <li key={week.week} className="flex gap-3">
-                  <span className={cn('mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-aria-cyan/15 font-mono text-[11px] text-aria-cyan')}>
-                    W{week.week}
-                  </span>
-                  <div>
-                    <p className="text-sm font-medium text-slate-200">{week.title}</p>
-                    <ul className="mt-1 space-y-0.5">
-                      {week.tasks.map((task) => (
-                        <li key={task} className="text-xs text-slate-400">· {task}</li>
-                      ))}
-                    </ul>
-                  </div>
-                </li>
-              ))}
-            </ol>
-          </Section>
-        ) : null}
-      </div>
+      {active === 'risks' ? (
+        <Section title="Risks">
+          <ul className="space-y-3">
+            {blueprint.risks.map((row) => (
+              <li key={row.risk}>
+                <p className="text-sm font-medium text-slate-200">{row.risk}</p>
+                <p className="mt-0.5 text-xs leading-relaxed text-slate-400">{row.mitigation}</p>
+              </li>
+            ))}
+          </ul>
+        </Section>
+      ) : null}
+
+      {active === 'roadmap' ? (
+        <Section title="4-week roadmap">
+          <ol className="space-y-3">
+            {blueprint.roadmap.map((week) => (
+              <li key={week.week} className="flex gap-3">
+                <span className={cn('mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-aria-cyan/15 font-mono text-[11px] text-aria-cyan')}>
+                  W{week.week}
+                </span>
+                <div>
+                  <p className="text-sm font-medium text-slate-200">{week.title}</p>
+                  <ul className="mt-1 space-y-0.5">
+                    {week.tasks.map((task) => (
+                      <li key={task} className="text-xs text-slate-400">· {task}</li>
+                    ))}
+                  </ul>
+                </div>
+              </li>
+            ))}
+          </ol>
+        </Section>
+      ) : null}
     </div>
   )
 }

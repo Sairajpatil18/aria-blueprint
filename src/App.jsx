@@ -1,9 +1,11 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { Suspense, lazy, useCallback, useEffect, useRef, useState } from 'react'
 import { motion } from 'motion/react'
 import Hero from './components/Hero'
-import BlueprintView from './components/BlueprintView'
 import { cn } from '@/lib/utils'
+import { demoBlueprint } from './lib/demoFallback'
 import { sample1, sample2, sample3, sample4 } from './samples'
+
+const BlueprintView = lazy(() => import('./components/BlueprintView'))
 
 const MODES = [
   { value: 'cheaper', label: 'Cheaper' },
@@ -14,11 +16,26 @@ const MODES = [
 
 const SAMPLES = [sample1, sample2, sample3, sample4]
 
+const SpeakerIcon = ({ on }) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4" aria-hidden="true">
+    <path d="M11 5 6 9H3v6h3l5 4V5Z" />
+    {on ? (
+      <>
+        <path d="M15.5 8.5a5 5 0 0 1 0 7" />
+        <path d="M18.5 5.5a9 9 0 0 1 0 13" />
+      </>
+    ) : (
+      <path d="m16 9 5 6M21 9l-5 6" />
+    )}
+  </svg>
+)
+
 const speak = (text) => {
   if (!text || typeof window === 'undefined' || !window.speechSynthesis) return
   try {
+    const short = String(text).trim().split(/\s+/).slice(0, 12).join(' ')
     window.speechSynthesis.cancel()
-    const utterance = new SpeechSynthesisUtterance(text)
+    const utterance = new SpeechSynthesisUtterance(short)
     utterance.rate = 1.05
     utterance.lang = 'en-US'
     window.speechSynthesis.speak(utterance)
@@ -35,6 +52,8 @@ export default function App() {
   const [error, setError] = useState('')
   const [listening, setListening] = useState(false)
   const [samplesOpen, setSamplesOpen] = useState(false)
+  const [demo, setDemo] = useState(false)
+  const [voiceOn, setVoiceOn] = useState(false)
   const recognitionRef = useRef(null)
 
   const generate = useCallback(async (text, nextMode) => {
@@ -45,24 +64,32 @@ export default function App() {
     }
     setLoading(true)
     setError('')
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), 8000)
     try {
       const response = await fetch('/api/blueprint', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ idea: clean, mode: nextMode }),
+        signal: controller.signal,
       })
       const data = await response.json().catch(() => ({}))
       if (!response.ok || !data.blueprint) {
-        throw new Error(data.error || 'Could not build that blueprint. Try rewording the idea.')
+        throw new Error('Blueprint unavailable')
       }
       setBlueprint(data.blueprint)
-      speak(data.blueprint.spoken)
-    } catch (err) {
-      setError(err.message || 'Something went wrong while building the blueprint.')
+      setDemo(false)
+      if (voiceOn) speak(data.blueprint.spoken)
+    } catch {
+      // Offline, timed out or rejected: fall back to the closest bundled sample.
+      setBlueprint(demoBlueprint(clean))
+      setDemo(true)
+      setError('')
     } finally {
+      clearTimeout(timer)
       setLoading(false)
     }
-  }, [])
+  }, [voiceOn])
 
   const handleSubmit = () => generate(idea, mode)
 
@@ -124,6 +151,7 @@ export default function App() {
   const loadSample = (sample) => {
     setSamplesOpen(false)
     setError('')
+    setDemo(false)
     setIdea(sample.title)
     setBlueprint({ ...sample, summary: `Starter architecture for ${sample.title}.` })
   }
@@ -168,6 +196,25 @@ export default function App() {
             ))}
           </div>
 
+          <button
+            type="button"
+            onClick={() => {
+              if (voiceOn) window.speechSynthesis?.cancel?.()
+              setVoiceOn(!voiceOn)
+            }}
+            aria-pressed={voiceOn}
+            aria-label={voiceOn ? 'Turn spoken confirmation off' : 'Turn spoken confirmation on'}
+            title={voiceOn ? 'Spoken confirmation: on' : 'Spoken confirmation: off'}
+            className={cn(
+              'flex h-8 w-8 items-center justify-center rounded-lg border transition',
+              voiceOn
+                ? 'border-aria-cyan/50 bg-aria-cyan/15 text-aria-cyan'
+                : 'border-line/70 bg-white/[0.03] text-slate-400 hover:text-slate-100',
+            )}
+          >
+            <SpeakerIcon on={voiceOn} />
+          </button>
+
           <button type="button" onClick={() => setSamplesOpen(true)} className="btn px-3 py-1.5 text-xs">
             Samples
           </button>
@@ -188,7 +235,21 @@ export default function App() {
       <main className="mx-auto w-full max-w-6xl px-4 pb-24">
         {blueprint ? (
           <motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
-            <BlueprintView blueprint={blueprint} />
+            {demo ? (
+              <div className="mb-4 flex flex-wrap items-center gap-2">
+                <span className="chip border-aria-amber/40 bg-aria-amber/10 text-aria-amber">Demo mode</span>
+                <span className="text-xs text-slate-400">Showing a sample blueprint</span>
+              </div>
+            ) : null}
+            <Suspense
+              fallback={
+                <div className="panel p-10 text-center font-mono text-xs tracking-wide text-slate-400">
+                  Drawing the blueprint…
+                </div>
+              }
+            >
+              <BlueprintView blueprint={blueprint} />
+            </Suspense>
           </motion.div>
         ) : (
           <div className="panel flex flex-col items-center gap-3 p-10 text-center">
