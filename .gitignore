@@ -1,0 +1,28 @@
+# secrets — only .env.example is committed
+.env
+.env.*
+!.env.example
+
+# dependencies / build output
+node_modules
+dist
+dist-ssr
+.vercel
+
+# python leftovers (old project)
+venv
+.venv
+__pycache__
+*.pyc
+
+# tooling / OS
+.DS_Store
+Thumbs.db
+*.log
+npm-debug.log*
+.vite
+
+# screenshots captured for docs are committed on purpose; ignore one-off captures
+/.screens
+
+.qoder/

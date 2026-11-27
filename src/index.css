@@ -1,0 +1,126 @@
+@import '@xyflow/react/dist/style.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --glow-cyan: 0 0 40px -8px rgba(34,211,238,.6);
+    --glow-violet: 0 0 40px -8px rgba(139,92,246,.6);
+  }
+  .glow-cyan {
+    box-shadow: var(--glow-cyan);
+  }
+  .glow-violet {
+    box-shadow: var(--glow-violet);
+  }
+}
+
+@layer base {
+  :root {
+    color-scheme: dark;
+  }
+
+  html,
+  body,
+  #root {
+    min-height: 100%;
+  }
+
+  body {
+    @apply bg-ink text-slate-50 font-display antialiased;
+    background-color: #05070f;
+    background-image:
+      radial-gradient(60rem 40rem at 15% -10%, rgba(34, 211, 238, 0.1), transparent 60%),
+      radial-gradient(50rem 35rem at 90% 0%, rgba(139, 92, 246, 0.12), transparent 55%),
+      linear-gradient(180deg, #05070f 0%, #05070f 55%, #0b1220 100%);
+    background-attachment: fixed;
+  }
+
+  ::selection {
+    background: rgba(34, 211, 238, 0.3);
+  }
+
+  :focus-visible {
+    @apply outline-none ring-2 ring-aria-cyan/70 ring-offset-2 ring-offset-ink;
+  }
+}
+
+@layer components {
+  .panel {
+    @apply rounded-2xl border border-line/80 bg-panel/70 backdrop-blur-sm;
+  }
+
+  .chip {
+    @apply inline-flex items-center gap-1.5 rounded-full border border-line bg-white/[0.03] px-3 py-1 text-xs text-slate-300;
+  }
+
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-white/[0.04] px-3.5 py-2 text-sm font-medium text-slate-200 transition hover:border-aria-cyan/50 hover:bg-white/[0.07] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
+  .btn-primary {
+    @apply border-transparent bg-aria-cyan text-ink hover:bg-cyan-300 hover:border-transparent;
+  }
+
+  .eyebrow {
+    @apply font-mono text-[11px] uppercase tracking-[0.22em] text-aria-cyan/80;
+  }
+
+  .tab {
+    @apply relative whitespace-nowrap rounded-lg px-3 py-2 text-sm text-slate-400 transition hover:text-slate-100;
+  }
+
+  .tab-active {
+    @apply bg-white/[0.06] text-white;
+  }
+}
+
+/* Glowing, "drawn" connections in the architecture graph. */
+.react-flow__edge-path.aria-edge {
+  stroke: #22d3ee;
+  stroke-width: 1.6;
+  stroke-dasharray: 6 5;
+  filter: drop-shadow(0 0 3px rgba(34, 211, 238, 0.55));
+  animation: aria-flow 1.4s linear infinite;
+}
+
+@keyframes aria-flow {
+  to {
+    stroke-dashoffset: -22;
+  }
+}
+
+.react-flow__attribution {
+  display: none;
+}
+
+.react-flow__background {
+  opacity: 0.45;
+}
+
+/* Respect users who ask for less motion: no drift, no flowing dashes. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+/* Scrollbars that match the console look. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #1b2942 transparent;
+}
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+*::-webkit-scrollbar-thumb {
+  background: #1b2942;
+  border-radius: 999px;
+}
